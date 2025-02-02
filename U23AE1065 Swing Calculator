@@ -1,0 +1,162 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+
+public class Calculator extends JFrame implements ActionListener {
+    private JTextField display;
+    private StringBuilder currentInput;
+
+    public Calculator() {
+        currentInput = new StringBuilder();
+
+        // Create the display
+        display = new JTextField();
+        display.setEditable(false);
+        display.setHorizontalAlignment(JTextField.RIGHT);
+        display.setFont(new Font("Arial", Font.BOLD, 20));
+
+        // Create the buttons
+        String[] buttonLabels = {
+                "7", "8", "9", "/", "√",
+                "4", "5", "6", "*", "C",
+                "1", "2", "3", "-", "Del",
+                "0", ".", "=", "+"
+        };
+        
+        JPanel buttonPanel = new JPanel(new GridLayout(5, 4, 5, 5));
+        for (String label : buttonLabels) {
+            JButton button = new JButton(label);
+            button.setFont(new Font("Arial", Font.BOLD, 20));
+            button.addActionListener(this);
+            buttonPanel.add(button);
+        }
+
+        // Layout the components
+        setLayout(new BorderLayout(5, 5));
+        add(display, BorderLayout.NORTH);
+        add(buttonPanel, BorderLayout.CENTER);
+
+        // Set up the frame
+        setTitle("Calculator");
+        setSize(400, 500);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+    }
+
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        String command = e.getActionCommand();
+
+        switch (command) {
+            case "C":
+                currentInput.setLength(0);
+                display.setText("");
+                break;
+            case "Del":
+                if (currentInput.length() > 0) {
+                    currentInput.setLength(currentInput.length() - 1);
+                    display.setText(currentInput.toString());
+                }
+                break;
+            case "=":
+                try {
+                    double result = evaluate(currentInput.toString());
+                    display.setText(String.valueOf(result));
+                    currentInput.setLength(0);
+                    currentInput.append(result);
+                } catch (Exception ex) {
+                    display.setText("Error");
+                    currentInput.setLength(0);
+                }
+                break;
+            case "√":
+                try {
+                    double value = Double.parseDouble(currentInput.toString());
+                    double result = Math.sqrt(value);
+                    display.setText(String.valueOf(result));
+                    currentInput.setLength(0);
+                    currentInput.append(result);
+                } catch (Exception ex) {
+                    display.setText("Error");
+                    currentInput.setLength(0);
+                }
+                break;
+            default:
+                currentInput.append(command);
+                display.setText(currentInput.toString());
+                break;
+        }
+    }
+
+    private double evaluate(String expression) {
+        // Simple evaluation logic (this can be improved)
+        return new Object() {
+            int pos = -1, ch;
+
+            void nextChar() {
+                ch = (++pos < expression.length()) ? expression.charAt(pos) : -1;
+            }
+
+            boolean eat(int charToEat) {
+                while (ch == ' ') nextChar();
+                if (ch == charToEat) {
+                    nextChar();
+                    return true;
+                }
+                return false;
+            }
+
+            double parse() {
+                nextChar();
+                double x = parseExpression();
+                if (pos < expression.length()) throw new RuntimeException("Unexpected: " + (char) ch);
+                return x;
+            }
+
+            double parseExpression() {
+                double x = parseTerm();
+                for (; ; ) {
+                    if (eat('+')) x += parseTerm(); // addition
+                    else if (eat('-')) x -= parseTerm(); // subtraction
+                    else return x;
+                }
+            }
+
+            double parseTerm() {
+                double x = parseFactor();
+                for (; ; ) {
+                    if (eat('*')) x *= parseFactor(); // multiplication
+                    else if (eat('/')) x /= parseFactor(); // division
+                    else return x;
+                }
+            }
+
+            double parseFactor() {
+                if (eat('+')) return parseFactor(); // unary plus
+                if (eat('-')) return -parseFactor(); // unary minus
+
+                double x;
+                int startPos = this.pos;
+                if (eat('(')) { // parentheses
+                    x = parseExpression();
+                    eat(')');
+                } else if ((ch >= '0' && ch <= '9') || ch == '.') { // numbers
+                    while ((ch >= '0' && ch <= '9') || ch == '.') nextChar();
+                    x = Double.parseDouble(expression.substring(startPos, this.pos));
+                } else {
+                    throw new RuntimeException("Unexpected: " + (char) ch);
+                }
+
+                return x;
+            }
+        }.parse();
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            Calculator calculator = new Calculator();
+            calculator.setVisible(true);
+        });
+    }
+}
